@@ -17,6 +17,9 @@
   },
   "homepage": "https://github.com/amir-s/naked#readme",
   "dependencies": {
-    "koa": "^1.1.2"
+    "generic-session": "^0.1.1",
+    "koa": "^1.1.2",
+    "koa-body-parser": "^1.1.2",
+    "koa-router": "^5.3.0"
   }
 }

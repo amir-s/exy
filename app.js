@@ -8,7 +8,7 @@ var koa = require('koa'),
 
 
 router.get('/', function* (next) {
-    this.body = 'Hello World!';
+    yield send(this, './app/templates/home.html')
 });
 
 router.get('/count', function* (next) {
@@ -21,7 +21,8 @@ var app = new koa();
 app.keys = ['keys'];
 
 app
-    .use(static('./public/'))
+    .use(static('./app/public/'))
+    .use(static('./app/templates/'))
     .use(session())
     .use(bodyParser())
     .use(router.routes())

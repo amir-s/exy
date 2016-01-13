@@ -1,31 +1,39 @@
-var koa = require('koa'),
-    session = require('koa-generic-session'),
-    router = require('koa-router')(),
-    bodyParser = require('koa-body-parser'),
-    static = require('koa-static'),
-    send = require('koa-send');
-
-
-
-router.get('/', function* (next) {
-    yield send(this, './app/templates/home.html')
-});
-
-router.get('/count', function* (next) {
-    this.session.count = this.session.count || 0;
-    this.session.count++;
-    this.body = 'N = ' + this.session.count;
-});
-
-var app = new koa();
-app.keys = ['keys'];
-
-app
-    .use(static('./app/public/'))
-    .use(static('./app/templates/'))
-    .use(session())
-    .use(bodyParser())
-    .use(router.routes())
-    .use(router.allowedMethods())
+var naked = require('./naked');
     
-    .listen(3000);
+
+
+naked
+    .middleware('static', [], [require('koa-static')('./app/public/'), require('koa-static')('./app/templates/')])
+    .middleware('session', [], require('koa-generic-session')())
+    .middleware('bodyParser', [], require('koa-body-parser')())
+
+
+
+var router = require('koa-router')();
+
+naked
+    .middleware('router-mw', ['session', 'bodyParser', 'static'], [router.routes(), router.allowedMethods()])
+    .service('router', ['router-mw'], function () {
+        return router;
+    });
+
+
+naked.service('send', [], function () {
+    return require('koa-send');
+});
+
+
+naked.plugin('home-page', ['router', 'send'], function (router, send) {
+    router.get('/', function* (next) {
+        yield send(this, './app/templates/home.html');
+    });
+    router.get('/count', function* (next) {
+        this.session.count = this.session.count || 0;
+        this.session.count++;
+        this.body = 'N = ' + this.session.count;
+    });
+});
+
+
+naked.boot(3000);
+console.log("http://localhost:3000");

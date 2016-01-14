@@ -12,7 +12,7 @@ Array.prototype.asyncMap = function (fn) {
             }
         }).then(function () {
             acc(out);
-        })
+        });
     })
 }
 
@@ -27,38 +27,28 @@ class Naked {
     static fixDependencies(deps) {
         return deps.map(name => ({inject: !name.startsWith('@'), name: name.replace('@','')}));
     }
-    middleware(name, deps, impl) {
-        if (!Array.isArray(impl)) impl = [impl];
+    addBlock(type, name, deps, impl) {
         if (this.blocks[name]) throw new Error(`The name ${name} already exists`);
-        this.middlewares[name] = {
+        this[type][name] = {
             deps: Naked.fixDependencies(deps),
             impl: impl,
             loaded: false,
-            type: 'middleware'
+            type: type
         };
-        this.blocks[name] = this.middlewares[name];
+        this.blocks[name] = this[type][name];
+        return this;
+    }
+    middleware(name, deps, impl) {
+        if (!Array.isArray(impl)) impl = [impl];
+        this.addBlock('middlewares', name, deps, impl);
         return this;
     }
     service(name, deps, impl) {
-        if (this.blocks[name]) throw new Error(`The name ${name} already exists`);
-        this.services[name] = {
-            deps: Naked.fixDependencies(deps),
-            impl: impl,
-            loaded: false,
-            type: 'service'
-        };
-        this.blocks[name] = this.services[name];
+        this.addBlock('services', name, deps, impl);
         return this;
     }
     plugin(name, deps, impl) {
-        if (this.blocks[name]) throw new Error(`The name ${name} already exists`);
-        this.plugins[name] = {
-            deps: Naked.fixDependencies(deps),
-            impl: impl,
-            loaded: false,
-            type: 'plugin'
-        };
-        this.blocks[name] = this.plugins[name];
+        this.addBlock('plugins', name, deps, impl);
         return this;
     }
     *boot(port) {
@@ -79,12 +69,12 @@ class Naked {
                 if (self.blocks[name].deps[i].inject) instances.push(instance);
             };
             self.blocks[name].loaded = true;
-            if (self.blocks[name].type == 'middleware') {
+            if (self.blocks[name].type == 'middlewares') {
                 self.blocks[name].impl.forEach(_ => app.use(_));
-            }else if (self.blocks[name].type == 'service') {
+            }else if (self.blocks[name].type == 'services') {
                 self.blocks[name].instance = yield self.blocks[name].impl.apply(null, instances);
                 return self.blocks[name].instance;
-            }else if (self.blocks[name].type == 'plugin') {
+            }else if (self.blocks[name].type == 'plugins') {
                 yield self.blocks[name].impl.apply(null, instances);
             }
         };

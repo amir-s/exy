@@ -1,36 +1,9 @@
 var naked = require('./naked');
     
+require('./middlewares');
+require('./router');
+require('./services');
 
-
-naked
-    .middleware('static', [], [require('koa-static')('./app/public/'), require('koa-static')('./app/templates/')])
-    .middleware('session', [], require('koa-generic-session')())
-    .middleware('bodyParser', [], require('koa-body-parser')())
-
-
-
-var router = require('koa-router')();
-
-naked
-    .middleware('router-mw', ['@session', '@bodyParser', '@static'], [router.routes(), router.allowedMethods()])
-    .service('router', ['@router-mw'], function* () {
-        return router;
-    });
-
-
-naked.service('send', [], function* () {
-    return require('koa-send');
-});
-
-naked.service('db', [], function* () {
-    var knex = require('knex')({
-        client: 'sqlite3',
-        connection: {
-            filename: "./data/database.sqlite"
-        }
-    });
-    return knex;
-});
 
 naked.service('count-model', ['db'], function*(db) {
     if (!(yield db.schema.hasTable('config'))) {
@@ -49,10 +22,9 @@ naked.service('count-model', ['db'], function*(db) {
             yield db.update({val: n}).from('config').where({key: 'count'});
         }
     }
-})
+});
 
 naked.plugin('home-page', ['router', 'send', '@session', 'count-model'], function* (router, send, model) {
-   
     router.get('/', function* (next) {
         yield send(this, './app/templates/home.html');
     });

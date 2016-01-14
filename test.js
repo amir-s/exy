@@ -1,5 +1,21 @@
 var co = require('co');
 'use strict';
+
+Array.prototype.asyncMap = function (fn) {
+    return new Promise((acc, rej) => {
+    	var self = this;
+        var out = [];
+        co(function*() {
+            for (var i=0;i<self.length;i++) {
+                var result = yield fn.call(null, self[i]);
+                out.push(result);
+            }
+        }).then(function () {
+            acc(out);
+        })
+    })
+}
+
 function* f(n) {
 	if (n == 1) return 0;
 	var t = yield f(n-1);
@@ -63,17 +79,19 @@ var arr = [
 	}
 ];
 
+
 var dfs = function* (at) {
 	console.log('started at: ' + at.id);
-	yield at.childs.map(c => {
-		console.log('going to call dfs on ' + c.id)
-		return dfs(c)
+	yield at.childs.asyncMap(function*(c) {
+		// console.log('going to call dfs on ' + c.id);
+		return yield dfs(c);
 	});
-	console.log('finished childs at: ' + at.id);
+	// console.log('finished childs at: ' + at.id);
 	var ret = yield at.code();
 	console.log('ret ' + ret);
 }
 
 co(function*() {
-	yield arr.map(dfs);
+	yield arr.asyncMap(dfs);
+
 })

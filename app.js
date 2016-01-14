@@ -54,7 +54,6 @@ naked.plugin('home-page', ['router', 'send', '@session', 'db'], function* (route
         n++;
         yield db.update({val: n}).from('config').where({key: 'count'});
         this.body = n;
-
     });
 });
 

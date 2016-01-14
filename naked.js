@@ -1,4 +1,5 @@
 'use strict';
+var co = require('co');
 
 class Naked {
     constructor() {
@@ -41,34 +42,41 @@ class Naked {
         this.blocks[name] = this.plugins[name];
         return this;
     }
-    boot(port) {
-        var koa = require('koa')
+    *boot(port) {
+        var koa = require('koa');
         var app = new koa();
         app.keys = ['keys'];
-
-        var loader = name => {
-            if (this.blocks[name] === undefined) throw new Error(`dependency ${name} does not exists`);
-            if (this.blocks[name].loaded === true) return;
-            if (this.blocks[name].loaded === 'started') throw new Error(`block ${name} caused a cyclic dependency chain`);
-            this.blocks[name].loaded = 'started';
-            this.blocks[name].deps.forEach(loader);
-            this.blocks[name].loaded = true;
-            if (this.blocks[name].type == 'middleware') {
-                this.blocks[name].impl.forEach(_ => app.use(_));
-            }else if (this.blocks[name].type == 'service') {
-                this.blocks[name].instance = this.blocks[name].impl.call();
+        var self = this;
+        function* loader (name) {
+            if (self.blocks[name] === undefined) throw Error(`dependency ${name} does not exists`);
+            if (self.blocks[name].loaded === true) return;
+            if (self.blocks[name].loaded === 'started') throw new Error(`block ${name} caused a cyclic dependency chain`);
+            self.blocks[name].loaded = 'started';
+            for (var i=0;i<self.blocks[name].deps.length;i++) {
+                yield loader(self.blocks[name].deps[i]);
+            };
+            self.blocks[name].loaded = true;
+            if (self.blocks[name].type == 'middleware') {
+                self.blocks[name].impl.forEach(_ => app.use(_));
+            }else if (self.blocks[name].type == 'service') {
+                self.blocks[name].instance = yield self.blocks[name].impl.call();
             }
-        }
+        };
 
-        Object.keys(this.middlewares).forEach(mw => loader(mw))
-        Object.keys(this.services).forEach(sr => loader(sr));
-        
-        Object.keys(this.plugins).forEach(pl => {
-            this.plugins[pl].impl.apply(null, this.plugins[pl].deps.map(d => this.blocks[d].instance));
+        yield Object.keys(this.middlewares).map(mw => loader(mw))
+        yield Object.keys(this.services).map(sr => loader(sr));
+        yield Object.keys(this.plugins).map(pl => {
+            this.plugins[pl].deps.filter(d => d.startsWith('@')).map(d => d.substr(1)).map(loader);
+            return this.plugins[pl].impl.apply(null, this.plugins[pl].deps.filter(d => !d.startsWith('@')).map(d => this.blocks[d].instance));
         });
 
         app.listen(port);
 
+    }
+    run(port) {
+        co(this.boot(port)).catch(function (e) {
+            console.log(e);
+        });
     }
 }
 

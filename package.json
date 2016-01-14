@@ -17,11 +17,14 @@
   },
   "homepage": "https://github.com/amir-s/naked#readme",
   "dependencies": {
+    "co": "^4.6.0",
+    "knex": "^0.9.0",
     "koa": "^1.1.2",
     "koa-body-parser": "^1.1.2",
     "koa-generic-session": "^1.10.1",
     "koa-router": "^5.3.0",
     "koa-send": "^3.1.0",
-    "koa-static": "^2.0.0"
+    "koa-static": "^2.0.0",
+    "sqlite3": "^3.1.1"
   }
 }
